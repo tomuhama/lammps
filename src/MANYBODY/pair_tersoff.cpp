@@ -22,11 +22,13 @@
 #include "atom.h"
 #include "comm.h"
 #include "error.h"
+#include "fix_sdhc_force.h"
 #include "force.h"
 #include "info.h"
 #include "math_const.h"
 #include "math_extra.h"
 #include "math_special.h"
+#include "modify.h"
 #include "memory.h"
 #include "neigh_list.h"
 #include "neighbor.h"
@@ -58,6 +60,7 @@ PairTersoff::PairTersoff(LAMMPS *lmp) : Pair(lmp)
 
   maxshort = 10;
   neighshort = nullptr;
+  fix_sdhc = nullptr;
 }
 
 /* ----------------------------------------------------------------------
@@ -204,6 +207,12 @@ void PairTersoff::eval()
 
       if (SHIFT_FLAG) fpair *= forceshiftfac;
 
+      if (fix_sdhc) {
+        double dFi[3] = {delx * fpair, dely * fpair, delz * fpair};
+        double dFj[3] = {-dFi[0], -dFi[1], -dFi[2]};
+        fix_sdhc->tally_pair(i, j, dFi, dFj);
+      }
+
       fxtmp += delx*fpair;
       fytmp += dely*fpair;
       fztmp += delz*fpair;
@@ -270,6 +279,12 @@ void PairTersoff::eval()
 
       fpair = fforce*r1inv;
 
+      if (fix_sdhc) {
+        double dFi[3] = {delr1[0] * fpair, delr1[1] * fpair, delr1[2] * fpair};
+        double dFj[3] = {-dFi[0], -dFi[1], -dFi[2]};
+        fix_sdhc->tally_pair(i, j, dFi, dFj);
+      }
+
       fxtmp += delr1[0]*fpair;
       fytmp += delr1[1]*fpair;
       fztmp += delr1[2]*fpair;
@@ -303,6 +318,10 @@ void PairTersoff::eval()
 
         attractive(&params[iparam_ijk],prefactor,
                    rsq1,rsq2,r1_hat,r2_hat,fi,fj,fk);
+
+        if (fix_sdhc) {
+          fix_sdhc->tally_triplet(i, j, k, fi, fj, fk);
+        }
 
         fxtmp += fi[0];
         fytmp += fi[1];
@@ -398,6 +417,15 @@ void PairTersoff::init_style()
   // need a full neighbor list
 
   neighbor->add_request(this,NeighConst::REQ_FULL);
+
+  fix_sdhc = nullptr;
+  for (int i = 0; i < modify->nfix; i++) {
+    if (strcmp(modify->fix[i]->style, "sdhc/force") == 0) {
+      if (fix_sdhc)
+        error->all(FLERR, "Pair style tersoff supports only one fix sdhc/force");
+      fix_sdhc = static_cast<FixSDHCForce *>(modify->fix[i]);
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------

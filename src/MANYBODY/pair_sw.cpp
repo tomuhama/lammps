@@ -22,9 +22,11 @@
 #include "atom.h"
 #include "comm.h"
 #include "error.h"
+#include "fix_sdhc_force.h"
 #include "force.h"
 #include "info.h"
 #include "memory.h"
+#include "modify.h"
 #include "neigh_list.h"
 #include "neighbor.h"
 #include "potential_file_reader.h"
@@ -53,6 +55,7 @@ PairSW::PairSW(LAMMPS *lmp) : Pair(lmp)
 
   maxshort = 10;
   neighshort = nullptr;
+  fix_sdhc = nullptr;
 }
 
 /* ----------------------------------------------------------------------
@@ -157,6 +160,12 @@ void PairSW::compute(int eflag, int vflag)
 
       twobody(&params[ijparam],rsq,fpair,eflag,evdwl);
 
+      if (fix_sdhc) {
+        double dFi[3] = {delx * fpair, dely * fpair, delz * fpair};
+        double dFj[3] = {-dFi[0], -dFi[1], -dFi[2]};
+        fix_sdhc->tally_pair(i, j, dFi, dFj);
+      }
+
       fxtmp += delx*fpair;
       fytmp += dely*fpair;
       fztmp += delz*fpair;
@@ -197,6 +206,11 @@ void PairSW::compute(int eflag, int vflag)
 
         threebody(&params[ijparam],&params[ikparam],&params[ijkparam],
                   rsq1,rsq2,delr1,delr2,fj,fk,eflag,evdwl);
+
+        if (fix_sdhc) {
+          double dFi[3] = {-(fj[0] + fk[0]), -(fj[1] + fk[1]), -(fj[2] + fk[2])};
+          fix_sdhc->tally_triplet(i, j, k, dFi, fj, fk);
+        }
 
         fxtmp -= fj[0] + fk[0];
         fytmp -= fj[1] + fk[1];
@@ -327,6 +341,15 @@ void PairSW::init_style()
     neighbor->add_request(this);
   else
     neighbor->add_request(this, NeighConst::REQ_FULL);
+
+  fix_sdhc = nullptr;
+  for (int i = 0; i < modify->nfix; i++) {
+    if (strcmp(modify->fix[i]->style, "sdhc/force") == 0) {
+      if (fix_sdhc)
+        error->all(FLERR, "Pair style sw supports only one fix sdhc/force");
+      fix_sdhc = static_cast<FixSDHCForce *>(modify->fix[i]);
+    }
+  }
 }
 
 /* ----------------------------------------------------------------------

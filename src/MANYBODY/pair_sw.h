@@ -24,6 +24,8 @@ PairStyle(sw,PairSW);
 
 namespace LAMMPS_NS {
 
+class FixSDHCForce;
+
 class PairSW : public Pair {
  public:
   PairSW(class LAMMPS *);
@@ -51,10 +53,11 @@ class PairSW : public Pair {
  protected:
   double cutmax;              // max cutoff for all elements
   Param *params;              // parameter set for an I-J-K interaction
-  int maxshort;               // size of short neighbor list array
-  int *neighshort;            // short neighbor list array
-  int skip_threebody_flag;    // whether to run threebody loop
-  int params_mapped;          // whether parameters have been read and mapped to elements
+ int maxshort;               // size of short neighbor list array
+ int *neighshort;            // short neighbor list array
+ int skip_threebody_flag;    // whether to run threebody loop
+ int params_mapped;          // whether parameters have been read and mapped to elements
+  FixSDHCForce *fix_sdhc;
 
   void settings(int, char **) override;
   virtual void allocate();

@@ -24,6 +24,8 @@ PairStyle(tersoff,PairTersoff);
 
 namespace LAMMPS_NS {
 
+class FixSDHCForce;
+
 class PairTersoff : public Pair {
  public:
   PairTersoff(class LAMMPS *);
@@ -57,9 +59,10 @@ class PairTersoff : public Pair {
 
  protected:
   Param *params;      // parameter set for an I-J-K interaction
-  double cutmax;      // max cutoff for all elements
-  int maxshort;       // size of short neighbor list array
-  int *neighshort;    // short neighbor list array
+ double cutmax;      // max cutoff for all elements
+ int maxshort;       // size of short neighbor list array
+ int *neighshort;    // short neighbor list array
+  FixSDHCForce *fix_sdhc;
 
   int shift_flag;    // flag to turn on/off shift
   double shift;      // negative change in equilibrium bond length
